@@ -5,6 +5,7 @@ import re
 import os
 from newsapi import NewsApiClient
 import newsapi
+import re
 import subprocess
 
 # Initialize the recognizer
@@ -21,7 +22,7 @@ def get_news():
     try:
         print("Getting news") 
         speak("Function Called")
-        top_news = news.get_top_headlines(qintitle='India')
+        top_news = news.get_top_headlines(q='India')
        
         return top_news
     except KeyboardInterrupt:
@@ -39,16 +40,20 @@ commands = {
 
 commandsv2 = {
     "information_retrieval": [
-        "what is [query]",
-        "summarize [topic]",
-        "tell me about [topic]"
+        "what is",
+        "summarize",
+        "tell me about"
     ],
     "calculations": [
-        "calculate [expression]",
-        "what is [expression]",
+        "calculate",
         "[number] percent of [number]",
-        "square root of [number]"
+        "square root of"
     ],
+    "stop":[
+        "stop", 
+        "pause", 
+        "quit", 
+        "exit"],
     "productivity": [
         "remind me to [task] at [time]",
         "add [event] to my calendar on [date] at [time]",
@@ -75,34 +80,11 @@ def speak(text):
         return
 
 def match_command(user_speech):
-        for command, variations in commands.items():
+        for command, variations in commandsv2.items():
             if user_speech.lower() in variations:
                 return command
         return None  # No matching command found
 
-def run_git_command(command):
-    """
-    Runs the given Git command using subprocess.
-
-    Args:
-        command: The Git command to execute (e.g., "git status").
-    """
-
-    try:
-        # Execute the command using subprocess
-        result = subprocess.run(command.split(), capture_output=True, text=True)
-
-        # Print the output of the command
-        print(result.stdout)
-
-        # Check for errors
-        if result.returncode != 0:
-            print("Error:", result.stderr)
-
-    except FileNotFoundError:
-        print("Error: Git is not installed or not found in the PATH.")
-    except subprocess.CalledProcessError as e:
-        print("Error:", e.output)
 
 flag = 1
 
@@ -113,10 +95,10 @@ def run_command(matched_command, command_text):
     Args:
         command: The command to execute (e.g., "open file").
     """
-    if matched_command == "play music":
-        speak("Playing music")
-    elif matched_command == "open file":
-        speak("Opening file")
+    if matched_command == "information_retrieval":
+        speak("Retrieving information")
+    elif matched_command == "calculations":
+        speak("Calculating")
     elif matched_command == "stop":
         speak("Stopping")
     elif matched_command == "get_news":

@@ -1,9 +1,43 @@
+import speech_recognition as sr
+import pyttsx3
+import requests as requests
 import re
-import nltk 
-from nltk.tokenize import word_tokenize
-from nltk.tag import pos_tag
+import os
+from newsapi import NewsApiClient
+import newsapi
+import re
+import subprocess
 
-# Provided commands
+# Initialize the recognizer
+recognizer = sr.Recognizer()
+
+engine = pyttsx3.init()
+engine.setProperty('rate', 185)
+
+
+NEWS = "f8545dec6b684508938d0b230b84b626"
+news = NewsApiClient(api_key=NEWS)
+
+def get_news():
+    try:
+        print("Getting news") 
+        speak("Function Called")
+        top_news = news.get_top_headlines(q='India')
+       
+        return top_news
+    except KeyboardInterrupt:
+        return None
+    except requests.exceptions.RequestException:
+        return None
+
+# commands = {
+#     "play music": ["play music", "start music", "play some tunes"],
+#     "open file": ["open file", "open document", "show file"],
+#     "stop":["stop", "pause", "quit", "exit"],
+#     "get_news": [ "get news", "show news", "what is the news"]
+#     # ... more commands
+# }    
+
 commandsv2 = {
     "information_retrieval": [
         "what is",
@@ -30,38 +64,170 @@ commandsv2 = {
         "send an email to [contact] saying [message]",
         "schedule an email to [contact] for [time] saying [message]"
     ],
-    "script_execution": [
-        "run the [script name] script",
-        "execute the [script name] script"
-    ],
-    "get_news": [ "get news", "show news", "what is the news"]
+    "get_news": [ "get news", "show news", "what is the news"],
+    "execution": [
+        "execute command",
+        "list directory",
+        "delete file",
+        "execute script",
+        "create file",
+        "execute git command"
+    ]
 }
 
-# Input command
-user_input = "What is the third derivative of 25?"
+def execute_command(speech_text):
+    """
+    Executes commands related to file and script execution.
 
-# def remove_phrases(user_input):
-#     # Remove phrases like "what is," "summarize," and "tell me about"
-#     for command_list in commandsv2.values():
-#         for command in command_list:
-#             user_input = user_input.replace(command, "")
-#     return user_input.strip()
+    Args:
+        speech_text: The text of the user's speech.
+    """
 
-def extract_nouns(user_input):
-    print("Cleaned input after removing phrases:", user_input)
-    # Tokenize the input sentence
-    words = word_tokenize(user_input)
-    print("Tokenized words:", words)
-    # Part-of-speech tagging
-    tagged_words = pos_tag(words)
-    print("Tagged words:", tagged_words)
-    # Extract nouns and cardinal numbers
-    nouns = [word for word, pos in tagged_words if pos.startswith('N') or pos == 'CD' or pos== 'JJ']
-    return nouns
+    # Extract the specific command from the speech text
+    # (you'll need to implement this based on your NLU or pattern matching)
+    command = extract_command_from_speech(speech_text)
 
-# Remove phrases and extract nouns
-# cleaned_input = remove_phrases(user_input)
-# print("Cleaned input after removing phrases:", cleaned_input)
-nouns = extract_nouns(user_input)
+    if command == "list directory":
+        try:
+            current_dir = os.getcwd()
+            files = os.listdir(current_dir)
+            print("Files in the current directory:")
+            for file in files:
+                print(file)
+        except OSError as e:
+            print("Error listing directory:", e)
 
-print("Extracted Nouns:", ", ".join(nouns))
+    elif command == "delete file":
+        file_name = extract_file_name_from_speech(speech_text)  # Implement this function
+        try:
+            os.remove(file_name)
+            print("File deleted:", file_name)
+        except FileNotFoundError:
+            print("Error: File not found:", file_name)
+        except OSError as e:
+            print("Error deleting file:", e)
+
+    elif command == "execute script" or command == "execute git command":
+        script_name = extract_script_name_from_speech(speech_text)  # Implement this function
+        try:
+            # For Git commands, you might need to prepend "git " to the script_name
+            if command == "execute git command":
+                script_name = "git " + script_name
+            subprocess.run(script_name.split(), check=True)
+        except FileNotFoundError:
+            print("Error: Script not found:", script_name)
+        except subprocess.CalledProcessError as e:
+            print("Error executing script:", e.output)
+
+    elif command == "create file":
+        file_name = extract_file_name_from_speech(speech_text)  # Implement this function
+        try:
+            with open(file_name, "x") as f:
+                print("File created:", file_name)
+        except FileExistsError:
+            print("Error: File already exists:", file_name)
+        except OSError as e:
+            print("Error creating file:", e)
+
+    else:
+        print("Command not recognized:", command)
+
+def extract_script_name_from_speech(speech_text):
+    """
+    Extracts the script name from speech text of the format "execute git command git <command>".
+
+    Args:
+        speech_text: The text of the user's speech.
+
+    Returns:
+        The extracted script name (Git command) if found, otherwise None.
+    """
+
+    match = re.search(r"execute git command git (.*)", speech_text.lower())
+    if match:
+        return match.group(1)  # Extract the captured command
+    else:
+        return None
+
+def extract_file_name_from_speech(speech_text):
+    """
+    Extracts the file name from speech text of the form "Create file <filename>" or "Delete file <filename>".
+
+    Args:
+        speech_text: The text of the user's speech.
+
+    Returns:
+        The extracted file name if found, otherwise None.
+    """
+
+    match = re.search(r"(?:create|delete) (.*)", speech_text.lower())
+    if match:
+        return match.group(1).strip()  # Extract and remove leading/trailing spaces
+    else:
+        return None
+
+def speak(text):
+    print("ASSISTANT -> " + text)
+    try:
+        engine.say(text)
+        engine.runAndWait()
+    except KeyboardInterrupt or RuntimeError:
+        return
+
+def match_command(user_speech):
+        for command, variations in commandsv2.items():
+            if user_speech.lower() in variations:
+                return command
+        return None  # No matching command found
+
+
+flag = 1
+
+def run_command(matched_command, command_text):
+    """
+    Runs the given command using subprocess.
+
+    Args:
+        command: The command to execute (e.g., "open file").
+    """
+    if matched_command == "information_retrieval":
+        speak("Retrieving information")
+    elif matched_command == "calculations":
+        speak("Calculating")
+    elif matched_command == "stop":
+        speak("Stopping")
+    elif matched_command == "get_news":
+        speak("Getting news from A P I")
+        news = get_news()
+        print(news)
+        for hl in news['articles'][0:5]:
+            speak(str(hl['title'])) 
+
+while flag:
+    # Use the microphone as the audio source
+    with sr.Microphone() as source:
+        print("Say something!")
+        audio = recognizer.listen(source)
+
+    # Try to recognize the speech
+    try:
+        text = recognizer.recognize_google(audio)
+        print("You said:", text)
+    except sr.UnknownValueError:
+        print("Could not understand audio")
+    except sr.RequestError as e:
+        print("Could not request results from Google Speech Recognition service; {0}".format(e))
+        
+    if text:
+        matched_command = match_command(text)
+
+        if matched_command:
+            run_command(matched_command=matched_command, command_text=text)
+        
+        else:
+            print("Command not recognized.")
+            speak("Command not recognized.")
+            speak("Please try again.")
+    if text == "quit" or text == "exit"or text == "stop" or text == "bye":
+            flag = 0 
+    text = ""

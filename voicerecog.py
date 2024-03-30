@@ -30,13 +30,13 @@ def get_news():
     except requests.exceptions.RequestException:
         return None
 
-commands = {
-    "play music": ["play music", "start music", "play some tunes"],
-    "open file": ["open file", "open document", "show file"],
-    "stop":["stop", "pause", "quit", "exit"],
-    "get_news": [ "get news", "show news", "what is the news"]
-    # ... more commands
-}    
+# commands = {
+#     "play music": ["play music", "start music", "play some tunes"],
+#     "open file": ["open file", "open document", "show file"],
+#     "stop":["stop", "pause", "quit", "exit"],
+#     "get_news": [ "get news", "show news", "what is the news"]
+#     # ... more commands
+# }    
 
 commandsv2 = {
     "information_retrieval": [
@@ -64,12 +64,107 @@ commandsv2 = {
         "send an email to [contact] saying [message]",
         "schedule an email to [contact] for [time] saying [message]"
     ],
-    "script_execution": [
-        "run the [script name] script",
-        "execute the [script name] script"
-    ],
-    "get_news": [ "get news", "show news", "what is the news"]
+    "get_news": [ "get news", "show news", "what is the news"],
+    "execution": [
+        "execute command",
+        "list directory",
+        "delete file",
+        "execute script",
+        "create file",
+        "execute git command"
+    ]
 }
+
+def execute_command(speech_text):
+    """
+    Executes commands related to file and script execution.
+
+    Args:
+        speech_text: The text of the user's speech.
+    """
+
+    # Extract the specific command from the speech text
+    # (you'll need to implement this based on your NLU or pattern matching)
+    command = extract_command_from_speech(speech_text)
+
+    if command == "list directory":
+        try:
+            current_dir = os.getcwd()
+            files = os.listdir(current_dir)
+            print("Files in the current directory:")
+            for file in files:
+                print(file)
+        except OSError as e:
+            print("Error listing directory:", e)
+
+    elif command == "delete file":
+        file_name = extract_file_name_from_speech(speech_text)  # Implement this function
+        try:
+            os.remove(file_name)
+            print("File deleted:", file_name)
+        except FileNotFoundError:
+            print("Error: File not found:", file_name)
+        except OSError as e:
+            print("Error deleting file:", e)
+
+    elif command == "execute script" or command == "execute git command":
+        script_name = extract_script_name_from_speech(speech_text)  # Implement this function
+        try:
+            # For Git commands, you might need to prepend "git " to the script_name
+            if command == "execute git command":
+                script_name = "git " + script_name
+            subprocess.run(script_name.split(), check=True)
+        except FileNotFoundError:
+            print("Error: Script not found:", script_name)
+        except subprocess.CalledProcessError as e:
+            print("Error executing script:", e.output)
+
+    elif command == "create file":
+        file_name = extract_file_name_from_speech(speech_text)  # Implement this function
+        try:
+            with open(file_name, "x") as f:
+                print("File created:", file_name)
+        except FileExistsError:
+            print("Error: File already exists:", file_name)
+        except OSError as e:
+            print("Error creating file:", e)
+
+    else:
+        print("Command not recognized:", command)
+
+def extract_script_name_from_speech(speech_text):
+    """
+    Extracts the script name from speech text of the format "execute git command git <command>".
+
+    Args:
+        speech_text: The text of the user's speech.
+
+    Returns:
+        The extracted script name (Git command) if found, otherwise None.
+    """
+
+    match = re.search(r"execute git command git (.*)", speech_text.lower())
+    if match:
+        return match.group(1)  # Extract the captured command
+    else:
+        return None
+
+def extract_file_name_from_speech(speech_text):
+    """
+    Extracts the file name from speech text of the form "Create file <filename>" or "Delete file <filename>".
+
+    Args:
+        speech_text: The text of the user's speech.
+
+    Returns:
+        The extracted file name if found, otherwise None.
+    """
+
+    match = re.search(r"(?:create|delete) (.*)", speech_text.lower())
+    if match:
+        return match.group(1).strip()  # Extract and remove leading/trailing spaces
+    else:
+        return None
 
 def speak(text):
     print("ASSISTANT -> " + text)

@@ -1,5 +1,10 @@
 import speech_recognition as sr
 import pyttsx3
+import requests as requests
+import re
+import os
+from newsapi import NewsApiClient
+import newsapi
 import subprocess
 
 # Initialize the recognizer
@@ -8,12 +13,58 @@ recognizer = sr.Recognizer()
 engine = pyttsx3.init()
 engine.setProperty('rate', 185)
 
+
+NEWS = "f8545dec6b684508938d0b230b84b626"
+news = NewsApiClient(api_key=NEWS)
+
+def get_news():
+    try:
+        print("Getting news") 
+        speak("Function Called")
+        top_news = news.get_top_headlines(qintitle='India')
+       
+        return top_news
+    except KeyboardInterrupt:
+        return None
+    except requests.exceptions.RequestException:
+        return None
+
 commands = {
     "play music": ["play music", "start music", "play some tunes"],
     "open file": ["open file", "open document", "show file"],
-    "stop":["stop", "pause", "quit", "exit"]
+    "stop":["stop", "pause", "quit", "exit"],
+    "get_news": [ "get news", "show news", "what is the news"]
     # ... more commands
 }    
+
+commandsv2 = {
+    "information_retrieval": [
+        "what is [query]",
+        "summarize [topic]",
+        "tell me about [topic]"
+    ],
+    "calculations": [
+        "calculate [expression]",
+        "what is [expression]",
+        "[number] percent of [number]",
+        "square root of [number]"
+    ],
+    "productivity": [
+        "remind me to [task] at [time]",
+        "add [event] to my calendar on [date] at [time]",
+        "send an email to [contact] saying [message]",
+        "text [message] to [contact]"
+    ],
+    "email_actions": [
+        "send an email to [contact] saying [message]",
+        "schedule an email to [contact] for [time] saying [message]"
+    ],
+    "script_execution": [
+        "run the [script name] script",
+        "execute the [script name] script"
+    ],
+    "get_news": [ "get news", "show news", "what is the news"]
+}
 
 def speak(text):
     print("ASSISTANT -> " + text)
@@ -68,6 +119,12 @@ def run_command(matched_command, command_text):
         speak("Opening file")
     elif matched_command == "stop":
         speak("Stopping")
+    elif matched_command == "get_news":
+        speak("Getting news from A P I")
+        news = get_news()
+        print(news)
+        for hl in news['articles'][0:5]:
+            speak(str(hl['title'])) 
 
 while flag:
     # Use the microphone as the audio source

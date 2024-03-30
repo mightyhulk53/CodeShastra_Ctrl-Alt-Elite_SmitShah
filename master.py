@@ -19,6 +19,13 @@ from Google import Create_Service
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import json
+import datetime
+import os.path
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 text_file = r"E:\Work\sem5backups\localdata\newkey.txt"
 
@@ -82,7 +89,7 @@ def generate_command(question):
     
 def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, email_sending, email_history, productivity, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -117,47 +124,6 @@ def text_from_base64_audio(base64_string):
         return jsonify({"error": "Could not request results from Google Speech Recognition service; {0}".format(e)})  
     
     return text
-
-def aac_wav_to_pcm_wav(base64_string, output_filename):
-  """
-  Decodes an AAC encoded WAV file from base64 string and saves as PCM WAV.
-
-  Args:
-    base64_string: The base64 encoded string containing the AAC WAV data.
-    output_filename: The filename to save the PCM WAV file as.
-  """
-  # Decode the base64 string into bytes
-  wav_data = base64.b64decode(base64_string)
-
-  # Extract potential AAC data from WAV (assuming minimal header)
-  # This might need adjustment based on the specific WAV structure
-  possible_aac_data = wav_data[44:]  # Skip first 44 bytes (assuming WAV header)
-
-  # Decode AAC to PCM (if data is present)
-  pcm_data = None
-  if possible_aac_data:
-    pcm_data = decode_aac_to_pcm(possible_aac_data)
-
-  # Check if data was decoded successfully
-  if not pcm_data:
-    raise ValueError("Failed to decode AAC data from WAV")
-
-  # Extract audio information from WAV header (modify if needed)
-  # Assuming standard PCM format for simplicity
-  sample_width = 2  # Bytes per sample (assuming 16-bit)
-  channels = 1  # Mono audio (assuming)
-  # Frame rate can potentially be extracted from the WAV header
-  # For simplicity, assuming a common rate here
-  framerate = 44100
-
-  # Open a WAV file for writing
-  with wave.open(output_filename, 'wb') as wav_file:
-    wav_file.setnchannels(channels)
-    wav_file.setsampwidth(sample_width)
-    wav_file.setframerate(framerate)
-    wav_file.writeframes(pcm_data)
-
-  print(f"Converted AAC WAV to PCM WAV: {output_filename}")
 
 def is_safe_command(command):
     # Split the command into arguments
@@ -204,9 +170,68 @@ def send_email(jsonobject):
         return jsonify({"message": "Email sent successfully"})
     except Exception as e:
         return 'An error occurred: {}'.format(e)
-        
+
+def get_credentials():
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first time.
+    if os.path.exists('token1.json'):
+        creds = Credentials.from_authorized_user_file('token1.json')
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token1.json', 'w') as token:
+            token.write(creds.to_json())
+    return creds
+ 
+def create_event(eventobj):
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
+    
+    try:    
+        creds = get_credentials()
+        service = build('calendar', 'v3', credentials=creds)
+        if service:
+            event = service.events().insert(calendarId='primary', body=eventobj).execute()
+            return 'Event created: %s' % (event.get('htmlLink'))
+        else:
+            return 'Error creating event:{}'.format(service)
+    except HttpError as e:
+        return 'Error creating event:{}'.format(e)
+ 
+def calendar_events(jsonobject):
+    
+    jsonobj = json.loads(jsonobject)
+    
+    sendingobj = {
+        "summary": jsonobj['summary'],
+        "location": jsonobj['location'],
+        "start": {
+            "dateTime": jsonobj['start']['dateTime'],
+            "timeZone": jsonobj['start']['timeZone']
+        },
+        "end": {
+            "dateTime": jsonobj['end']['dateTime'],
+            "timeZone": jsonobj['end']['timeZone']
+        }
+    }
+    
+
+    return create_event(sendingobj)
     
     
+def generate_calendar_event(text):
+    question = r"Generate a json object in the following format {      'summary': summary,      'location': location,      'start': {        'dateTime': start_time.strftime('%Y-%m-%dT%H:%M:%S'),        'timeZone': 'Asia/Kolkata',  # Example: 'America/Los_Angeles'     },      'end': {        'dateTime': end_time.strftime('%Y-%m-%dT%H:%M:%S'),        'timeZone': 'Asia/Kolkata',  # Example: 'America/Los_Angeles'      }    } based on the following line:" + text + ". Return only a json object with the populated fieldsmentioned before. Do not include any fields that are unknown. Each field must be in plaintext only, and there should not be any newline characters. Do Not include any notes or warnings. Your response should consist of nothing else but the json object itself."
+    
+    response = chat.send_message(str(question))
+    
+    return str(response.text.replace("\n", ""))
 
 def speak_and_save(text):
     print("ASSISTANT -> " + text)
@@ -251,7 +276,7 @@ def emailhistory():
 
 
 def determine_intent(request_type,  text):
-    allowed_types = ["get_news", "email_sending", "email_history", "productivity", "calculations", "description_or_explanation", "executable_on_commandline"]
+    allowed_types = ["get_news", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
     
     if request_type not in allowed_types:
         return jsonify({
@@ -270,7 +295,9 @@ def determine_intent(request_type,  text):
         return send_email(jsonobject=returnobj)
     elif request_type == "email_history":
         return emailhistory()
-    
+    elif request_type == "calendar_events":
+        returnobj = generate_calendar_event(str(text)).replace("\n", "")
+        return calendar_events(jsonobject=returnobj)      
     
     else:
         return "Wait for Support"

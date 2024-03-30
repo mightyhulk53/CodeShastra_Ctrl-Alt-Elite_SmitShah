@@ -66,7 +66,11 @@ def get_news():
         retlist = []
         for hl in top_news['articles'][0:5]:
             retlist.append(hl['title'])
-        return retlist
+        return jsonify(
+            {
+                "result": retlist
+            })
+
     except KeyboardInterrupt:
         return None
     except requests.exceptions.RequestException:
@@ -81,8 +85,7 @@ def ask_text(question):
     
     return jsonify(
         {
-            "response": response.text,
-            "question": question
+            "result": response.text,
         }
     )
 
@@ -136,7 +139,7 @@ def run_command(cmd: str):
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)    
     return jsonify(
         {
-            "output": result.stdout,
+            "result": result.stdout,
             "return_code": result.returncode
         }
     )
@@ -200,15 +203,16 @@ def send_email(jsonobject):
     emailMsg = message
     mimeMessage = MIMEMultipart()
     mimeMessage['to'] = reciever
-    mimeMessage['subject'] = 'You won'
+    mimeMessage['subject'] = subject
     mimeMessage.attach(MIMEText(emailMsg, 'plain'))
     raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
 
     try:
         message = service.users().messages().send(userId='me', body={'raw': raw_string}).execute()
-        return jsonify({"message": "Email sent successfully"})
+        return jsonify({"result": "Email sent successfully"})
     except Exception as e:
-        return 'An error occurred: {}'.format(e)
+        return jsonify({"result": "Error sending email: " + str(e)})
+
 
 def get_credentials():
     SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -238,11 +242,13 @@ def create_event(eventobj):
         service = build('calendar', 'v3', credentials=creds)
         if service:
             event = service.events().insert(calendarId='primary', body=eventobj).execute()
-            return 'Event created: %s' % (event.get('htmlLink'))
+            return jsonify({
+                "result": 'Event created: %s' % (event.get('htmlLink'))
+            })
         else:
-            return 'Error creating event:{}'.format(service)
-    except HttpError as e:
-        return 'Error creating event:{}'.format(e)
+            return jsonify({"result": 'Error creating event:{}'.format(service)})
+    except Exception as e:
+        return jsonify({"result": 'Error creating event:{}'.format(e)})
  
 def calendar_events(jsonobject):
     
@@ -308,7 +314,7 @@ def emailhistory():
                 msg = service.users().messages().get(userId='me', id=message['id']).execute()
                 snippets.append('Message snippet: {}'.format(msg['snippet']))
                 
-        return snippets
+        return jsonify({'result': snippets})
     except Exception as e:
         return 'An error occurred: {}'.format(e)
 
@@ -350,7 +356,7 @@ def extract_math_expression(text):
     result = eval(eval_str)
     print(eval_str, result)
     
-    return json.dumps({"result": result})
+    return jsonify({"result": str(result)})
 
 def get_network_info_json():
     """
@@ -361,9 +367,11 @@ def get_network_info_json():
     ip_address = socket.gethostbyname(hostname)
 
     network_info = {
+        'result':{
         "hostname": hostname,
         "ip_address": ip_address,
         "interfaces": []
+        }
     }
 
     try:
@@ -378,11 +386,15 @@ def get_network_info_json():
                         "netmask": address.netmask,
                         "broadcast": address.broadcast
                     }
-                    network_info["interfaces"].append(interface_info)
+                    network_info['result']["interfaces"].append(interface_info)
     except ImportError:
         pass  # No additional information without psutil
-
+    
     return json.dumps(network_info)
+    
+    # return json.dumps({
+    #     "result": retobj
+    # })
 
 def determine_intent(request_type,  text):
     allowed_types = ["get_news", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
@@ -449,19 +461,6 @@ def ask_in_text():
     
     return ret 
 
-@app.route("/verified_command", methods=["POST"])
-@cross_origin()
-def verified_command():
-    
-    cmmd = request.json["command"]
-    status = request.json["status"]
-    
-    if status == "Verified":
-        results = run_command(cmmd)
-    else:
-        results = jsonify({"error": "Command not verified"})
-    
-    return results
 
 def text_from_base64_audio(base64_string):
     decoded_data = base64.b64decode(base64_string)

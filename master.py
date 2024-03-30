@@ -30,6 +30,10 @@ engine.setProperty('rate', 185)
 NEWS = "f8545dec6b684508938d0b230b84b626"
 news = NewsApiClient(api_key=NEWS)
 
+app = Flask(__name__)
+cors = CORS(app)
+app.config["CORS_HEADERS"] = "Content-Type"
+
 def get_news():
     try:
         print("Getting news") 
@@ -42,9 +46,9 @@ def get_news():
     except requests.exceptions.RequestException:
         return None
 
-def ask():
+def ask_text(question):
 
-    question = str(request.json["question"]) + ". Explain in short. Answer in plaintext and not markdown."
+    question = question + ". Explain in short. Answer in plaintext and not markdown."
 
     response = chat.send_message(str(question))
 
@@ -56,9 +60,9 @@ def ask():
         }
     )
 
-def ask_for_command():
+def generate_command(question):
 
-    question = "Extract the implied command line command in the following line:" + str(request.json["question"]) + ". Return only an executable version of the command in plaintext. Add no notes or warnings."
+    question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command in plaintext. Add no notes or warnings."
     
     response = chat.send_message(str(question))
     
@@ -69,9 +73,9 @@ def ask_for_command():
         }
     )
     
-def classify():
+def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, email_actions, productivity, calculations, description_or_explanation, or executable_on_commandline: " + str(request.json["question"]) + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, email_actions, productivity, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -82,7 +86,7 @@ def classify():
         }
     )
 
-def runcommand(cmd: str):
+def run_command(cmd: str):
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)    
     return jsonify(
         {
@@ -115,4 +119,30 @@ def speak(text):
         engine.runAndWait()
     except KeyboardInterrupt or RuntimeError:
         return
+
+def determine_intent(request_type,  text):
+    allowed_types = ["get_news", "email_actions", "productivity", "calculations", "description_or_explanation", "executable_on_commandline"]
     
+    if request_type not in allowed_types:
+        return jsonify({"error": "Invalid request type"})
+    
+    if request_type == "get_news":
+        return get_news()
+    elif request_type == "description_or_explanation":
+        return ask_text(str(text))
+    else:
+        return "Wait for Support"
+    
+
+    
+    
+@app.route("/ask_in_text", methods=["POST"])
+@cross_origin()
+def ask_in_text():
+    
+    question = request.json["question"]
+    req_class = classify_type(str(question))
+    
+    
+    
+    return 

@@ -15,7 +15,10 @@ from flask_cors import CORS, cross_origin
 import base64
 import soundfile
 from pydub import AudioSegment
-
+from Google import Create_Service
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+import json
 
 text_file = r"E:\Work\sem5backups\localdata\newkey.txt"
 
@@ -79,7 +82,7 @@ def generate_command(question):
     
 def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, email_actions, productivity, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, email_sending, email_history, productivity, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -173,6 +176,38 @@ def is_safe_command(command):
     # If no risky patterns found, tentatively assume safe
     return True
 
+def send_email(jsonobject):
+    CLIENT_SECRET_FILE = r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json'
+    API_NAME = 'gmail'
+    API_VERSION = 'v1'
+    SCOPES = ['https://mail.google.com/']
+
+    service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+    
+    jsonobj = json.loads(jsonobject)
+    print(jsonobj)
+    print(list(jsonobj.keys()))
+    
+    reciever = jsonobj[list(jsonobj.keys())[0]]
+    message = jsonobj[list(jsonobj.keys())[1]]
+    subject = jsonobj[list(jsonobj.keys())[2]]
+
+    emailMsg = message
+    mimeMessage = MIMEMultipart()
+    mimeMessage['to'] = reciever
+    mimeMessage['subject'] = 'You won'
+    mimeMessage.attach(MIMEText(emailMsg, 'plain'))
+    raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
+
+    try:
+        message = service.users().messages().send(userId='me', body={'raw': raw_string}).execute()
+        return jsonify({"message": "Email sent successfully"})
+    except Exception as e:
+        return 'An error occurred: {}'.format(e)
+        
+    
+    
+
 def speak_and_save(text):
     print("ASSISTANT -> " + text)
     try:
@@ -181,11 +216,48 @@ def speak_and_save(text):
     except KeyboardInterrupt or RuntimeError:
         return
 
+def generate_email(text):
+    question = "Generate the body of an email based on the following line:" + text + ". Return only a json object with the populated fields of reciever, message, and subject. Do not include any fields that are unknown, such as start or end dates, or newline characters. Each field must be in plaintext only. Do Not include any notes or warnings. Your response should consist of nothing else but the json object itself."
+    
+    response = chat.send_message(str(question))
+    
+    return str(response.text.replace("\n", ""))
+
+def emailhistory():
+    CLIENT_SECRET_FILE = r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json'
+    API_NAME = 'gmail'
+    API_VERSION = 'v1'
+    SCOPES = ['https://mail.google.com/']
+
+    service = Create_Service(CLIENT_SECRET_FILE, API_NAME, API_VERSION, SCOPES)
+    
+    try:
+        response = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=5).execute()
+        messages = response.get('messages', [])
+        snippets = []
+
+        if not messages:
+            return "No Messages Found in the inbox."
+        else:
+            print('Last 5 messages in the inbox:')
+            for message in messages:
+                msg = service.users().messages().get(userId='me', id=message['id']).execute()
+                snippets.append('Message snippet: {}'.format(msg['snippet']))
+                
+        return snippets
+    except Exception as e:
+        return 'An error occurred: {}'.format(e)
+
+
+
 def determine_intent(request_type,  text):
-    allowed_types = ["get_news", "email_actions", "productivity", "calculations", "description_or_explanation", "executable_on_commandline"]
+    allowed_types = ["get_news", "email_sending", "email_history", "productivity", "calculations", "description_or_explanation", "executable_on_commandline"]
     
     if request_type not in allowed_types:
-        return jsonify({"error": "Invalid request type"})
+        return jsonify({
+            "error": "Invalid request type",
+            "given_type": request_type    
+        })
     
     if request_type == "get_news":
         return get_news()
@@ -193,7 +265,13 @@ def determine_intent(request_type,  text):
         return ask_text(str(text))
     elif request_type == "executable_on_commandline":
         return "obtained_command"
-
+    elif request_type == "email_sending":
+        returnobj =  generate_email(str(text)).replace("\n", "")
+        return send_email(jsonobject=returnobj)
+    elif request_type == "email_history":
+        return emailhistory()
+    
+    
     else:
         return "Wait for Support"
     
@@ -265,9 +343,7 @@ def ask_in_text():
                 "Command": str(cmmd),
             })
     else:
-        retjson = jsonify({
-            "Response": ret,
-        })
+        retjson = None
 
     
     return retjson if retjson else ret 

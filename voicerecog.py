@@ -51,10 +51,13 @@ while flag:
         if matched_command:
             print("Command Found!", matched_command)
             speak("Yes, I can help you with that.")
+            speak(f"Executing command...{matched_command}")
+        
         else:
             print("Command not recognized.")
             speak("Command not recognized.")
-            
-    if matched_command == "stop":
-        flag = 0
-        speak("Goodbye!")
+            speak("Please try again.")
+    if text == "quit" or text == "exit"or text == "stop" or text == "bye":
+            flag = 0
+            speak("Goodbye!")        
+    text = ""

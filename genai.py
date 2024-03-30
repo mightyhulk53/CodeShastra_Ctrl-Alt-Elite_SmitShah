@@ -37,13 +37,13 @@ def ask():
 @cross_origin()
 def ask_for_command():
 
-    question = "Extract the implied command line command in the following code:" + str(request.json["question"]) + ". Return only an executable version of the command in plaintext. Add no notes or warnings."
+    question = "Extract the implied command line command in the following line:" + str(request.json["question"]) + ". Return only an executable version of the command in plaintext. Add no notes or warnings."
     
     response = chat.send_message(str(question))
     
     return jsonify(
         {
-            "response": response.text,
+            "response": response.text.replace("\n", ""),
             "question": question
         }
     )

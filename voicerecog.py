@@ -1,43 +1,9 @@
-import speech_recognition as sr
-import pyttsx3
-import requests as requests
 import re
-import os
-from newsapi import NewsApiClient
-import newsapi
-import re
-import subprocess
+import nltk 
+from nltk.tokenize import word_tokenize
+from nltk.tag import pos_tag
 
-# Initialize the recognizer
-recognizer = sr.Recognizer()
-
-engine = pyttsx3.init()
-engine.setProperty('rate', 185)
-
-
-NEWS = "f8545dec6b684508938d0b230b84b626"
-news = NewsApiClient(api_key=NEWS)
-
-def get_news():
-    try:
-        print("Getting news") 
-        speak("Function Called")
-        top_news = news.get_top_headlines(q='India')
-       
-        return top_news
-    except KeyboardInterrupt:
-        return None
-    except requests.exceptions.RequestException:
-        return None
-
-commands = {
-    "play music": ["play music", "start music", "play some tunes"],
-    "open file": ["open file", "open document", "show file"],
-    "stop":["stop", "pause", "quit", "exit"],
-    "get_news": [ "get news", "show news", "what is the news"]
-    # ... more commands
-}    
-
+# Provided commands
 commandsv2 = {
     "information_retrieval": [
         "what is",
@@ -71,68 +37,31 @@ commandsv2 = {
     "get_news": [ "get news", "show news", "what is the news"]
 }
 
-def speak(text):
-    print("ASSISTANT -> " + text)
-    try:
-        engine.say(text)
-        engine.runAndWait()
-    except KeyboardInterrupt or RuntimeError:
-        return
+# Input command
+user_input = "What is the third derivative of 25?"
 
-def match_command(user_speech):
-        for command, variations in commandsv2.items():
-            if user_speech.lower() in variations:
-                return command
-        return None  # No matching command found
+# def remove_phrases(user_input):
+#     # Remove phrases like "what is," "summarize," and "tell me about"
+#     for command_list in commandsv2.values():
+#         for command in command_list:
+#             user_input = user_input.replace(command, "")
+#     return user_input.strip()
 
+def extract_nouns(user_input):
+    print("Cleaned input after removing phrases:", user_input)
+    # Tokenize the input sentence
+    words = word_tokenize(user_input)
+    print("Tokenized words:", words)
+    # Part-of-speech tagging
+    tagged_words = pos_tag(words)
+    print("Tagged words:", tagged_words)
+    # Extract nouns and cardinal numbers
+    nouns = [word for word, pos in tagged_words if pos.startswith('N') or pos == 'CD' or pos== 'JJ']
+    return nouns
 
-flag = 1
+# Remove phrases and extract nouns
+# cleaned_input = remove_phrases(user_input)
+# print("Cleaned input after removing phrases:", cleaned_input)
+nouns = extract_nouns(user_input)
 
-def run_command(matched_command, command_text):
-    """
-    Runs the given command using subprocess.
-
-    Args:
-        command: The command to execute (e.g., "open file").
-    """
-    if matched_command == "information_retrieval":
-        speak("Retrieving information")
-    elif matched_command == "calculations":
-        speak("Calculating")
-    elif matched_command == "stop":
-        speak("Stopping")
-    elif matched_command == "get_news":
-        speak("Getting news from A P I")
-        news = get_news()
-        print(news)
-        for hl in news['articles'][0:5]:
-            speak(str(hl['title'])) 
-
-while flag:
-    # Use the microphone as the audio source
-    with sr.Microphone() as source:
-        print("Say something!")
-        audio = recognizer.listen(source)
-
-    # Try to recognize the speech
-    try:
-        text = recognizer.recognize_google(audio)
-        print("You said:", text)
-    except sr.UnknownValueError:
-        print("Could not understand audio")
-    except sr.RequestError as e:
-        print("Could not request results from Google Speech Recognition service; {0}".format(e))
-        
-    if text:
-        matched_command = match_command(text)
-
-        if matched_command:
-            run_command(matched_command=matched_command, command_text=text)
-        
-        else:
-            print("Command not recognized.")
-            speak("Command not recognized.")
-            speak("Please try again.")
-    if text == "quit" or text == "exit"or text == "stop" or text == "bye":
-            flag = 0 
-    text = ""
+print("Extracted Nouns:", ", ".join(nouns))

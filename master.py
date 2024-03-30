@@ -10,6 +10,8 @@ import subprocess
 import pandas as pd
 import google.generativeai as genai
 import shlex
+from flask import Flask, request, jsonify
+from flask_cors import CORS, cross_origin
 
 text_file = r"E:\Work\sem5backups\localdata\newkey.txt"
 
@@ -36,11 +38,14 @@ app.config["CORS_HEADERS"] = "Content-Type"
 
 def get_news():
     try:
-        print("Getting news") 
-        speak("Function Called")
+        print("Getting news")  
+        # Get the top news headlines from India
         top_news = news.get_top_headlines(q='India')
        
-        return top_news
+        retlist = []
+        for hl in top_news['articles'][0:5]:
+            retlist.append(hl['title'])
+        return retlist
     except KeyboardInterrupt:
         return None
     except requests.exceptions.RequestException:
@@ -79,12 +84,7 @@ def classify_type(cmd):
     
     response = chat.send_message(str(question))
     
-    return jsonify(
-        {
-            "response": response.text.replace("\n", ""),
-            "question": question
-        }
-    )
+    return response.text.replace("\n", "")
 
 def run_command(cmd: str):
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)    
@@ -112,10 +112,10 @@ def is_safe_command(command):
     # If no risky patterns found, tentatively assume safe
     return True
 
-def speak(text):
+def speak_and_save(text):
     print("ASSISTANT -> " + text)
     try:
-        engine.say(text)
+        engine.save_to_file(text, "output.wav")
         engine.runAndWait()
     except KeyboardInterrupt or RuntimeError:
         return
@@ -143,6 +143,9 @@ def ask_in_text():
     question = request.json["question"]
     req_class = classify_type(str(question))
     
+    ret = determine_intent(req_class, question)
     
-    
-    return 
+    return ret 
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5051)

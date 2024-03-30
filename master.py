@@ -26,6 +26,10 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+import spacy
+
+# Load English language model
+nlp = spacy.load("en_core_web_sm")
 
 text_file = r"E:\Work\sem5backups\localdata\newkey.txt"
 
@@ -273,6 +277,45 @@ def emailhistory():
     except Exception as e:
         return 'An error occurred: {}'.format(e)
 
+def extract_math_expression(text):
+    # Tokenize the input text
+    doc = nlp(text)
+    
+    # Initialize a list to store tokens of the mathematical expression
+    math_tokens = []
+    
+    # Flag to track if the previous token was a number
+    prev_was_num = False
+    
+    # Iterate through tokens in the text
+    for token in doc:
+        # Check if the token is a number
+        if token.pos_ == "NUM":
+            # If the previous token was also a number, add a multiplication operator
+            if prev_was_num:
+                math_tokens.append("*")
+            math_tokens.append(token.text)
+            prev_was_num = True
+        # Check if the token is an operator
+        elif token.text in ("add", "plus"):
+            math_tokens.append("+")
+            prev_was_num = False
+        elif token.text in ("subtract", "minus"):
+            math_tokens.append("-")
+            prev_was_num = False
+        elif token.text in ("multiply", "times"):
+            math_tokens.append("*")
+            prev_was_num = False
+        elif token.text == "divide":
+            math_tokens.append("/")
+            prev_was_num = False
+    
+    # Return the tokens as a string
+    eval_str = " ".join(math_tokens)
+    result = eval(eval_str)
+    print(eval_str, result)
+    
+    return json.dumps({"result": result})
 
 
 def determine_intent(request_type,  text):
@@ -298,7 +341,8 @@ def determine_intent(request_type,  text):
     elif request_type == "calendar_events":
         returnobj = generate_calendar_event(str(text)).replace("\n", "")
         return calendar_events(jsonobject=returnobj)      
-    
+    elif request_type == "calculations":
+        return extract_math_expression(str(text))
     else:
         return "Wait for Support"
     

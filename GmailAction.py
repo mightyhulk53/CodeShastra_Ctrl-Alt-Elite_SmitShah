@@ -19,3 +19,21 @@ raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
 
 message = service.users().messages().send(userId='me', body={'raw': raw_string}).execute()
 print(message)
+
+def get_last_5_messages():
+    try:
+        response = service.users().messages().list(userId='me', labelIds=['INBOX'], maxResults=5).execute()
+        messages = response.get('messages', [])
+
+        if not messages:
+            print('No messages found.')
+        else:
+            print('Last 5 messages in the inbox:')
+            for message in messages:
+                msg = service.users().messages().get(userId='me', id=message['id']).execute()
+                print('Message snippet: {}'.format(msg['snippet']))
+    except Exception as e:
+        print('An error occurred:', e)
+
+if __name__ == '__main__':
+    get_last_5_messages()

@@ -1,5 +1,6 @@
 import speech_recognition as sr
 import pyttsx3
+import subprocess
 
 # Initialize the recognizer
 recognizer = sr.Recognizer()
@@ -28,7 +29,45 @@ def match_command(user_speech):
                 return command
         return None  # No matching command found
 
+def run_git_command(command):
+    """
+    Runs the given Git command using subprocess.
+
+    Args:
+        command: The Git command to execute (e.g., "git status").
+    """
+
+    try:
+        # Execute the command using subprocess
+        result = subprocess.run(command.split(), capture_output=True, text=True)
+
+        # Print the output of the command
+        print(result.stdout)
+
+        # Check for errors
+        if result.returncode != 0:
+            print("Error:", result.stderr)
+
+    except FileNotFoundError:
+        print("Error: Git is not installed or not found in the PATH.")
+    except subprocess.CalledProcessError as e:
+        print("Error:", e.output)
+
 flag = 1
+
+def run_command(matched_command, command_text):
+    """
+    Runs the given command using subprocess.
+
+    Args:
+        command: The command to execute (e.g., "open file").
+    """
+    if matched_command == "play music":
+        speak("Playing music")
+    elif matched_command == "open file":
+        speak("Opening file")
+    elif matched_command == "stop":
+        speak("Stopping")
 
 while flag:
     # Use the microphone as the audio source
@@ -49,15 +88,12 @@ while flag:
         matched_command = match_command(text)
 
         if matched_command:
-            print("Command Found!", matched_command)
-            speak("Yes, I can help you with that.")
-            speak(f"Executing command...{matched_command}")
+            run_command(matched_command=matched_command, command_text=text)
         
         else:
             print("Command not recognized.")
             speak("Command not recognized.")
             speak("Please try again.")
     if text == "quit" or text == "exit"or text == "stop" or text == "bye":
-            flag = 0
-            speak("Goodbye!")        
+            flag = 0 
     text = ""

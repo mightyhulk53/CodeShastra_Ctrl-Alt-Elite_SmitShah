@@ -1,13 +1,26 @@
 import speech_recognition as sr
+import pyttsx3
 
 # Initialize the recognizer
 recognizer = sr.Recognizer()
 
+engine = pyttsx3.init()
+engine.setProperty('rate', 185)
+
 commands = {
     "play music": ["play music", "start music", "play some tunes"],
     "open file": ["open file", "open document", "show file"],
+    "stop":["stop", "pause", "quit", "exit"]
     # ... more commands
 }    
+
+def speak(text):
+    print("ASSISTANT -> " + text)
+    try:
+        engine.say(text)
+        engine.runAndWait()
+    except KeyboardInterrupt or RuntimeError:
+        return
 
 def match_command(user_speech):
         for command, variations in commands.items():
@@ -15,7 +28,9 @@ def match_command(user_speech):
                 return command
         return None  # No matching command found
 
-while True:
+flag = 1
+
+while flag:
     # Use the microphone as the audio source
     with sr.Microphone() as source:
         print("Say something!")
@@ -35,5 +50,11 @@ while True:
 
         if matched_command:
             print("Command Found!", matched_command)
+            speak("Yes, I can help you with that.")
         else:
             print("Command not recognized.")
+            speak("Command not recognized.")
+            
+    if matched_command == "stop":
+        flag = 0
+        speak("Goodbye!")

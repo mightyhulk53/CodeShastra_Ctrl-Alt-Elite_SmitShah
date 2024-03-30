@@ -112,10 +112,10 @@ def is_safe_command(command):
     # If no risky patterns found, tentatively assume safe
     return True
 
-def speak(text):
+def speak_and_save(text):
     print("ASSISTANT -> " + text)
     try:
-        engine.say(text)
+        engine.save_to_file(text, "output.wav")
         engine.runAndWait()
     except KeyboardInterrupt or RuntimeError:
         return

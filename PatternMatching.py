@@ -1,5 +1,9 @@
 import re
+import nltk 
+from nltk.tokenize import word_tokenize
+from nltk.tag import pos_tag
 
+# Provided commands
 commandsv2 = {
     "information_retrieval": [
         "what is",
@@ -15,8 +19,7 @@ commandsv2 = {
         "stop", 
         "pause", 
         "quit", 
-        "exit"
-    ],
+        "exit"],
     "productivity": [
         "remind me to [task] at [time]",
         "add [event] to my calendar on [date] at [time]",
@@ -34,58 +37,31 @@ commandsv2 = {
     "get_news": [ "get news", "show news", "what is the news"]
 }
 
-def match_command(user_speech):
-    for command, variations in commandsv2.items():
-        for variation in variations:
-            if all(part in user_speech.lower() for part in variation.split()):
-                parts = re.findall(r'\[([^]]+)\]', variation)  # Extract parts inside square brackets
-                meaningful_parts = []
-                for part in parts:
-                    if part == "number":
-                        numbers = re.findall(r'\d+', user_speech)
-                        meaningful_parts.extend(numbers)
-                    elif part == "message":
-                        message = re.search(r'\"(.+?)\"', user_speech)
-                        if message:
-                            meaningful_parts.append(message.group(1))
-                    elif part == "time":
-                        time = re.search(r'\d{1,2}:\d{2}', user_speech)
-                        if time:
-                            meaningful_parts.append(time.group())
-                    elif part == "date":
-                        date = re.search(r'\d{1,2}/\d{1,2}/\d{4}', user_speech)
-                        if date:
-                            meaningful_parts.append(date.group())
-                    elif part == "contact":
-                        contact = re.search(r'\b[A-Za-z]+\b', user_speech)
-                        if contact:
-                            meaningful_parts.append(contact.group())
-                    elif part == "script name":
-                        script_name = re.search(r'\b[A-Za-z]+\b', user_speech)
-                        if script_name:
-                            meaningful_parts.append(script_name.group())
-                    elif part == "event":
-                        event = re.search(r'\"(.+?)\"', user_speech)
-                        if event:
-                            meaningful_parts.append(event.group(1))
-                    elif part == "task":
-                        task = re.search(r'\"(.+?)\"', user_speech)
-                        if task:
-                            meaningful_parts.append(task.group(1))
-                    elif part == "operation":
-                        operation = re.search(r'square root', user_speech)
-                        if operation:
-                            meaningful_parts.append(operation.group())
-                    else:
-                        meaningful_parts.append(part)
-                return command, meaningful_parts
-    return None, None  # No matching command found
+# Input command
+user_input = "What is the third derivative of 25?"
 
-# Example usage:
-user_input = "What is the square root of 25?"
-matched_command, matched_parts = match_command(user_input)
-if matched_command:
-    print(f"Matched command: {matched_command}")
-    print(f"Meaningful parts: {matched_parts}")
-else:
-    print("No matching command found.")
+# def remove_phrases(user_input):
+#     # Remove phrases like "what is," "summarize," and "tell me about"
+#     for command_list in commandsv2.values():
+#         for command in command_list:
+#             user_input = user_input.replace(command, "")
+#     return user_input.strip()
+
+def extract_nouns(user_input):
+    print("Cleaned input after removing phrases:", user_input)
+    # Tokenize the input sentence
+    words = word_tokenize(user_input)
+    print("Tokenized words:", words)
+    # Part-of-speech tagging
+    tagged_words = pos_tag(words)
+    print("Tagged words:", tagged_words)
+    # Extract nouns and cardinal numbers
+    nouns = [word for word, pos in tagged_words if pos.startswith('N') or pos == 'CD' or pos== 'JJ']
+    return nouns
+
+# Remove phrases and extract nouns
+# cleaned_input = remove_phrases(user_input)
+# print("Cleaned input after removing phrases:", cleaned_input)
+nouns = extract_nouns(user_input)
+
+print("Extracted Nouns:", ", ".join(nouns))

@@ -19,6 +19,20 @@ from Google import Create_Service
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import json
+import datetime
+import os.path
+import platform
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+import spacy
+import psutil
+import socket
+
+# Load English language model
+nlp = spacy.load("en_core_web_sm")
 
 text_file = r"E:\Work\sem5backups\localdata\newkey.txt"
 
@@ -72,6 +86,36 @@ def ask_text(question):
         }
     )
 
+def describe_machine():
+    """
+    Provides information about the machine where the script is running.
+    """
+
+    system = platform.system()
+    release = platform.release()
+    machine = platform.machine()
+    
+    memory_total = psutil.virtual_memory().total / (1024 ** 3)  # Convert to GB
+    memory_available = psutil.virtual_memory().available / (1024 ** 3)  # Convert to GB
+
+    # Disk usage information
+    disk_usage = psutil.disk_usage("/")  # Get usage for the root partition
+    disk_total = disk_usage.total / (1024 ** 3)  # Convert to GB
+    disk_free = disk_usage.free / (1024 ** 3)  # Convert to GB
+
+    return jsonify(
+        {
+            "system": system,
+            "release": release,
+            "machine": machine,
+            "memory_total": memory_total,
+            "memory_available": memory_available,
+            "disk_total": disk_total,
+            "disk_free": disk_free,
+        }
+    )
+       
+
 def generate_command(question):
 
     question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command for windows in plaintext. Add no notes or warnings. Your response should consist of nothing else but the command itself, such that your output can be directly executed on a windows machine."
@@ -82,7 +126,7 @@ def generate_command(question):
     
 def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, email_sending, email_history, productivity, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, system_info, get_ip, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -118,47 +162,6 @@ def text_from_base64_audio(base64_string):
     
     return text
 
-def aac_wav_to_pcm_wav(base64_string, output_filename):
-  """
-  Decodes an AAC encoded WAV file from base64 string and saves as PCM WAV.
-
-  Args:
-    base64_string: The base64 encoded string containing the AAC WAV data.
-    output_filename: The filename to save the PCM WAV file as.
-  """
-  # Decode the base64 string into bytes
-  wav_data = base64.b64decode(base64_string)
-
-  # Extract potential AAC data from WAV (assuming minimal header)
-  # This might need adjustment based on the specific WAV structure
-  possible_aac_data = wav_data[44:]  # Skip first 44 bytes (assuming WAV header)
-
-  # Decode AAC to PCM (if data is present)
-  pcm_data = None
-  if possible_aac_data:
-    pcm_data = decode_aac_to_pcm(possible_aac_data)
-
-  # Check if data was decoded successfully
-  if not pcm_data:
-    raise ValueError("Failed to decode AAC data from WAV")
-
-  # Extract audio information from WAV header (modify if needed)
-  # Assuming standard PCM format for simplicity
-  sample_width = 2  # Bytes per sample (assuming 16-bit)
-  channels = 1  # Mono audio (assuming)
-  # Frame rate can potentially be extracted from the WAV header
-  # For simplicity, assuming a common rate here
-  framerate = 44100
-
-  # Open a WAV file for writing
-  with wave.open(output_filename, 'wb') as wav_file:
-    wav_file.setnchannels(channels)
-    wav_file.setsampwidth(sample_width)
-    wav_file.setframerate(framerate)
-    wav_file.writeframes(pcm_data)
-
-  print(f"Converted AAC WAV to PCM WAV: {output_filename}")
-
 def is_safe_command(command):
     # Split the command into arguments
     args = shlex.split(command)
@@ -175,6 +178,8 @@ def is_safe_command(command):
 
     # If no risky patterns found, tentatively assume safe
     return True
+
+
 
 def send_email(jsonobject):
     CLIENT_SECRET_FILE = r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json'
@@ -204,9 +209,68 @@ def send_email(jsonobject):
         return jsonify({"message": "Email sent successfully"})
     except Exception as e:
         return 'An error occurred: {}'.format(e)
-        
+
+def get_credentials():
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
+    creds = None
+    # The file token.json stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first time.
+    if os.path.exists('token1.json'):
+        creds = Credentials.from_authorized_user_file('token1.json')
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json', SCOPES)
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open('token1.json', 'w') as token:
+            token.write(creds.to_json())
+    return creds
+ 
+def create_event(eventobj):
+    SCOPES = ['https://www.googleapis.com/auth/calendar']
+    
+    try:    
+        creds = get_credentials()
+        service = build('calendar', 'v3', credentials=creds)
+        if service:
+            event = service.events().insert(calendarId='primary', body=eventobj).execute()
+            return 'Event created: %s' % (event.get('htmlLink'))
+        else:
+            return 'Error creating event:{}'.format(service)
+    except HttpError as e:
+        return 'Error creating event:{}'.format(e)
+ 
+def calendar_events(jsonobject):
+    
+    jsonobj = json.loads(jsonobject)
+    
+    sendingobj = {
+        "summary": jsonobj['summary'],
+        "location": jsonobj['location'],
+        "start": {
+            "dateTime": jsonobj['start']['dateTime'],
+            "timeZone": jsonobj['start']['timeZone']
+        },
+        "end": {
+            "dateTime": jsonobj['end']['dateTime'],
+            "timeZone": jsonobj['end']['timeZone']
+        }
+    }
+    
+
+    return create_event(sendingobj)
     
     
+def generate_calendar_event(text):
+    question = r"Generate a json object in the following format {      'summary': summary,      'location': location,      'start': {        'dateTime': start_time.strftime('%Y-%m-%dT%H:%M:%S'),        'timeZone': 'Asia/Kolkata',  # Example: 'America/Los_Angeles'     },      'end': {        'dateTime': end_time.strftime('%Y-%m-%dT%H:%M:%S'),        'timeZone': 'Asia/Kolkata',  # Example: 'America/Los_Angeles'      }    } based on the following line:" + text + ". Return only a json object with the populated fieldsmentioned before. Do not include any fields that are unknown. Each field must be in plaintext only, and there should not be any newline characters. Do Not include any notes or warnings. Your response should consist of nothing else but the json object itself."
+    
+    response = chat.send_message(str(question))
+    
+    return str(response.text.replace("\n", ""))
 
 def speak_and_save(text):
     print("ASSISTANT -> " + text)
@@ -248,10 +312,80 @@ def emailhistory():
     except Exception as e:
         return 'An error occurred: {}'.format(e)
 
+def extract_math_expression(text):
+    # Tokenize the input text
+    doc = nlp(text)
+    
+    # Initialize a list to store tokens of the mathematical expression
+    math_tokens = []
+    
+    # Flag to track if the previous token was a number
+    prev_was_num = False
+    
+    # Iterate through tokens in the text
+    for token in doc:
+        # Check if the token is a number
+        if token.pos_ == "NUM":
+            # If the previous token was also a number, add a multiplication operator
+            if prev_was_num:
+                math_tokens.append("*")
+            math_tokens.append(token.text)
+            prev_was_num = True
+        # Check if the token is an operator
+        elif token.text in ("add", "plus"):
+            math_tokens.append("+")
+            prev_was_num = False
+        elif token.text in ("subtract", "minus"):
+            math_tokens.append("-")
+            prev_was_num = False
+        elif token.text in ("multiply", "times"):
+            math_tokens.append("*")
+            prev_was_num = False
+        elif token.text == "divide":
+            math_tokens.append("/")
+            prev_was_num = False
+    
+    # Return the tokens as a string
+    eval_str = " ".join(math_tokens)
+    result = eval(eval_str)
+    print(eval_str, result)
+    
+    return json.dumps({"result": result})
 
+def get_network_info_json():
+    """
+    Returns a JSON object containing network information.
+    """
+
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+
+    network_info = {
+        "hostname": hostname,
+        "ip_address": ip_address,
+        "interfaces": []
+    }
+
+    try:
+        import psutil
+        net_if_addrs = psutil.net_if_addrs()
+        for interface_name, addresses in net_if_addrs.items():
+            for address in addresses:
+                if address.family == socket.AF_INET:  # Check for IPv4 addresses
+                    interface_info = {
+                        "name": interface_name,
+                        "ip_address": address.address,
+                        "netmask": address.netmask,
+                        "broadcast": address.broadcast
+                    }
+                    network_info["interfaces"].append(interface_info)
+    except ImportError:
+        pass  # No additional information without psutil
+
+    return json.dumps(network_info)
 
 def determine_intent(request_type,  text):
-    allowed_types = ["get_news", "email_sending", "email_history", "productivity", "calculations", "description_or_explanation", "executable_on_commandline"]
+    allowed_types = ["get_news", "system_info", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
     
     if request_type not in allowed_types:
         return jsonify({
@@ -270,8 +404,15 @@ def determine_intent(request_type,  text):
         return send_email(jsonobject=returnobj)
     elif request_type == "email_history":
         return emailhistory()
-    
-    
+    elif request_type == "calendar_events":
+        returnobj = generate_calendar_event(str(text)).replace("\n", "")
+        return calendar_events(jsonobject=returnobj)      
+    elif request_type == "calculations":
+        return extract_math_expression(str(text))
+    elif request_type == "system_info":
+        return describe_machine()
+    elif request_type == "get_ip":
+        return get_network_info_json()
     else:
         return "Wait for Support"
     

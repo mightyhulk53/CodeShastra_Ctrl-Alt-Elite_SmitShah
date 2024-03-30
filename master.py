@@ -118,7 +118,7 @@ def describe_machine():
 
 def generate_command(question):
 
-    question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command for windows in plaintext. Add no notes or warnings. Your response should consist of nothing else but the command itself, such that your output can be directly executed on a windows machine."
+    question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command for windows in plaintext. Add no notes or warnings. Your response should consist of nothing else but the command itself, such that your output can be directly executed on a windows machine. Context: " + str(subprocess.run("dir", shell=True, capture_output=True, text=True).stdout)
     
     response = chat.send_message(str(question))
     
@@ -126,7 +126,7 @@ def generate_command(question):
     
 def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, system_info, get_ip, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, get_ip, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -385,7 +385,7 @@ def get_network_info_json():
     return json.dumps(network_info)
 
 def determine_intent(request_type,  text):
-    allowed_types = ["get_news", "system_info", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
+    allowed_types = ["get_news", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
     
     if request_type not in allowed_types:
         return jsonify({
@@ -398,7 +398,7 @@ def determine_intent(request_type,  text):
     elif request_type == "description_or_explanation":
         return ask_text(str(text))
     elif request_type == "executable_on_commandline":
-        return "obtained_command"
+        return run_command(generate_command(str(text)))
     elif request_type == "email_sending":
         returnobj =  generate_email(str(text)).replace("\n", "")
         return send_email(jsonobject=returnobj)
@@ -409,8 +409,6 @@ def determine_intent(request_type,  text):
         return calendar_events(jsonobject=returnobj)      
     elif request_type == "calculations":
         return extract_math_expression(str(text))
-    elif request_type == "system_info":
-        return describe_machine()
     elif request_type == "get_ip":
         return get_network_info_json()
     else:
@@ -432,29 +430,10 @@ def ask_in_audio():
     req_class = classify_type(str(text))
     
     ret = determine_intent(req_class, text)
-    if ret == "obtained_command":
-        cmmd = generate_command(str(text)).replace("\n", "")
-        flagger = is_safe_command(cmmd)
-        if flagger:
-            print("Command is safe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": True,
-                "SafeCommand": str(cmmd),
-            })
-        else:
-            print("Command is unsafe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": False,
-                "SafeCommand": None,
-                "Command": str(cmmd),
-            })
-    else:
-        retjson = None
+    
 
     
-    return retjson if retjson else ret
+    return ret
 
     
 @app.route("/ask_in_text", methods=["POST"])
@@ -465,29 +444,10 @@ def ask_in_text():
     req_class = classify_type(str(question))
     
     ret = determine_intent(req_class, question)
-    if ret == "obtained_command":
-        cmmd = generate_command(str(question)).replace("\n", "")
-        flagger = is_safe_command(cmmd)
-        if flagger:
-            print("Command is safe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": True,
-                "SafeCommand": str(cmmd),
-            })
-        else:
-            print("Command is unsafe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": False,
-                "SafeCommand": None,
-                "Command": str(cmmd),
-            })
-    else:
-        retjson = None
+    
 
     
-    return retjson if retjson else ret 
+    return ret 
 
 @app.route("/verified_command", methods=["POST"])
 @cross_origin()

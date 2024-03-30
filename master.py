@@ -21,12 +21,15 @@ from email.mime.text import MIMEText
 import json
 import datetime
 import os.path
+import platform
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 import spacy
+import psutil
+import socket
 
 # Load English language model
 nlp = spacy.load("en_core_web_sm")
@@ -83,6 +86,36 @@ def ask_text(question):
         }
     )
 
+def describe_machine():
+    """
+    Provides information about the machine where the script is running.
+    """
+
+    system = platform.system()
+    release = platform.release()
+    machine = platform.machine()
+    
+    memory_total = psutil.virtual_memory().total / (1024 ** 3)  # Convert to GB
+    memory_available = psutil.virtual_memory().available / (1024 ** 3)  # Convert to GB
+
+    # Disk usage information
+    disk_usage = psutil.disk_usage("/")  # Get usage for the root partition
+    disk_total = disk_usage.total / (1024 ** 3)  # Convert to GB
+    disk_free = disk_usage.free / (1024 ** 3)  # Convert to GB
+
+    return jsonify(
+        {
+            "system": system,
+            "release": release,
+            "machine": machine,
+            "memory_total": memory_total,
+            "memory_available": memory_available,
+            "disk_total": disk_total,
+            "disk_free": disk_free,
+        }
+    )
+       
+
 def generate_command(question):
 
     question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command for windows in plaintext. Add no notes or warnings. Your response should consist of nothing else but the command itself, such that your output can be directly executed on a windows machine."
@@ -93,7 +126,7 @@ def generate_command(question):
     
 def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, system_info, get_ip, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -145,6 +178,8 @@ def is_safe_command(command):
 
     # If no risky patterns found, tentatively assume safe
     return True
+
+
 
 def send_email(jsonobject):
     CLIENT_SECRET_FILE = r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json'
@@ -317,9 +352,40 @@ def extract_math_expression(text):
     
     return json.dumps({"result": result})
 
+def get_network_info_json():
+    """
+    Returns a JSON object containing network information.
+    """
+
+    hostname = socket.gethostname()
+    ip_address = socket.gethostbyname(hostname)
+
+    network_info = {
+        "hostname": hostname,
+        "ip_address": ip_address,
+        "interfaces": []
+    }
+
+    try:
+        import psutil
+        net_if_addrs = psutil.net_if_addrs()
+        for interface_name, addresses in net_if_addrs.items():
+            for address in addresses:
+                if address.family == socket.AF_INET:  # Check for IPv4 addresses
+                    interface_info = {
+                        "name": interface_name,
+                        "ip_address": address.address,
+                        "netmask": address.netmask,
+                        "broadcast": address.broadcast
+                    }
+                    network_info["interfaces"].append(interface_info)
+    except ImportError:
+        pass  # No additional information without psutil
+
+    return json.dumps(network_info)
 
 def determine_intent(request_type,  text):
-    allowed_types = ["get_news", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
+    allowed_types = ["get_news", "system_info", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
     
     if request_type not in allowed_types:
         return jsonify({
@@ -343,6 +409,10 @@ def determine_intent(request_type,  text):
         return calendar_events(jsonobject=returnobj)      
     elif request_type == "calculations":
         return extract_math_expression(str(text))
+    elif request_type == "system_info":
+        return describe_machine()
+    elif request_type == "get_ip":
+        return get_network_info_json()
     else:
         return "Wait for Support"
     

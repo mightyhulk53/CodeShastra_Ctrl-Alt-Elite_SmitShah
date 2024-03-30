@@ -13,15 +13,15 @@ def get_credentials():
     creds = None
     # The file token.json stores the user's access and refresh tokens, and is
     # created automatically when the authorization flow completes for the first time.
-    if os.path.exists('token1.json'):
-        creds = Credentials.from_authorized_user_file('token1.json')
+    if os.path.exists('token.json'):
+        creds = Credentials.from_authorized_user_file('token.json')
     # If there are no (valid) credentials available, let the user log in.
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
             flow = InstalledAppFlow.from_client_secrets_file(
-                r'E:\neov_ide\codeshastra\CodeShastra_Ctrl-Alt-Elite_SmitShah\smit_creds\Credentials.json', SCOPES)
+                'C:/Users/Atharva/OneDrive/Desktop/Codeshastra/CodeShastra_Ctrl-Alt-Elite_SmitShah/Credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open('token.json', 'w') as token:

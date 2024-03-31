@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign Up Form</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: Arial, sans-serif;
+        background-image: url('img/background.png');
+        background-size: cover;
+        background-position: center;
+    }
+
+    .container {
+        width: 50%;
+        margin: 100px auto;
+        background-color: rgba(255, 255, 255, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+
+    h2 {
+        text-align: center;
+        margin-bottom: 20px;
+    }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="password"] {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+    }
+
+    button {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        background-color: #007bff;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    button:hover {
+        background-color: #0056b3;
+    }
+
+    .google-btn {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        background-color: #db4437;
+        color: #fff;
+        border-radius: 5px;
+        cursor: pointer;
+    }
+
+    .google-btn:hover {
+        background-color: #c13584;
+    }
+
+    p {
+        text-align: center;
+        margin-top: 20px;
+    }
+</style>
+</head>
+<body>
+    <div class="container">
+        <h2>Sign Up</h2>
+        <form>
+            <input type="text" name="name" placeholder="Full Name" required><br>
+            <input type="email" name="email" placeholder="Email Address" required><br>
+            <input type="password" name="password" placeholder="Password" required><br>
+            <button type="submit">Sign Up</button>
+        </form>
+        <button class="google-btn" onclick="googleSignIn()">Sign Up with Google</button>
+        <p>Already have an account? <a href="#"></a></p>
+        <a href="login.html"> <button class="btn">Login</button></a>
+    </div>
+
+    <script>
+        function googleSignIn() {
+            // Redirect to Google authentication page
+            window.location.href = 'https://accounts.google.com/';
+        }
+    </script>
+</body>
+</html>

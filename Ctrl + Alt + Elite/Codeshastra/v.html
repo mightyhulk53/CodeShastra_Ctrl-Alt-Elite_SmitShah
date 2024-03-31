@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIFRA- Virtual Assistant</title>
+    <link rel="shortcut icon" href="avatar.png" type="image/x-icon">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+
+    <style>
+        /* Style for the ABOUT section */
+        .about-section {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: row;
+            padding: 50px;
+        }
+
+        .about-section img {
+            width: 300px;
+            height: auto;
+            margin-right: 50px;
+        }
+
+        .about-section p {
+            font-size: 18px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="menu">
+        <div class="search">
+            <a href="login.html"> <button class="btn">Login</button></a>
+            <a href="#"> <button id="signup" class="btn">Sign Up</button></a>
+        </div>
+
+        <ul class="nav-items">
+            <li><a href="#home">HOME</a></li>
+            <li><a href="#about" onclick="scrollToAbout()">ABOUT</a></li>
+            <li><a href="#Connect with us">CONNECT WITH US</a></li>
+            <li><a href="#contact">CONTACT</a></li>
+        </ul>
+    </div>
+    <section class="main">
+        <div class="image-container">
+            <div class="image">
+                <img src="img\gif.gif" alt="image">
+            </div>
+            <h1>S I F R A </h1>
+            <p>I'm a Virtual Assistant Sifra, How may I help you?</p>
+        </div>
+        <div class="input">
+            <button class="talk"><i class="fas fa-microphone-alt"></i></button>
+            <h1 class="content"> Click here to speak</h1>
+        </div>
+    </section>
+
+    <!-- ABOUT section -->
+    <section id="about" class="about-section">
+        <link rel="stylesheet" href="style.css">
+        <img src="img\image_processing20210706-10491-4pre63.png" alt="About Image">
+        <p>The goal of this Problem statement is to develop an innovative, real-time voice assistant within the AI/ML domain that offers these core capabilities:</p>
+        <ul>
+            <li>Highly Accurate Speech Recognition</li>
+            <li>Voice Profile Recognition</li>
+            <li>Integrated Terminal</li>
+            <li>Web Search</li>
+            <li>Versatile Function Calling</li>
+            <li>Intelligent Task Matching</li>
+            <li>Intuitive UI</li>
+        </ul>
+    </section>
+
+    <script>
+        function scrollToAbout() {
+            // Scroll to the ABOUT section
+            document.getElementById('about').scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+
+</html>
+

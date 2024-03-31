@@ -24,6 +24,7 @@ recognition.onresult = (event)=>{
     const currentIndex = event.resultIndex;
     const transcript = event.results[currentIndex][0].transcript;
     content.textContent = transcript;
+  
     takeCommand(transcript.toLowerCase());
 }
 
@@ -34,23 +35,21 @@ btn.addEventListener('click', () => {
 
 function takeCommand(message){
     let answer;
-    if(message.includes('hey') || message.includes('hello')){
-      speak("Hello Sir, How May I Help You?");
-        answer = "Hello Sir, How May I Help You?";//answer from python
-    }
-    else {
-        window.open(`https://www.google.com/search?q=${message.replace(" ", "+")}`, "_blank");
-        speak("I found some information for " + message + " on google");
-        answer = "I found some information for " + message + " on google";
-    }
-
+    $.ajax({ 
+      url: '/process', 
+      type: 'POST', 
+      contentType: 'application/json', 
+      data: JSON.stringify({ 'value': value }), 
+      success: function(response) { 
+          answer = response.result; 
+      }, 
+  }); 
     messages.push({user: message, assistant: answer});
     updateConversationView();
 }
 
 inputField.addEventListener("keypress", function(event) {
     if (event.key === "Enter") {
-      console.log("hellooo")
         event.preventDefault();
         sendTextMessage();
     }

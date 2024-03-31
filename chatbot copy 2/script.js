@@ -33,23 +33,38 @@ btn.addEventListener('click', () => {
   recognition.start();
 });
 
+let answer;
+
 function takeCommand(message){
-    let answer;
-    $.ajax({ 
-      url: '/process', 
-      type: 'POST', 
-      contentType: 'application/json', 
-      data: JSON.stringify({ 'value': value }), 
-      success: function(response) { 
-          answer = response.result; 
-      }, 
-  }); 
-    messages.push({user: message, assistant: answer});
-    updateConversationView();
+    const url = 'http://localhost:5051/ask_in_text';
+    const requestOptions = {
+    method: 'POST',
+    headers: new Headers({
+        'Access-Control-Allow-Origin': '*',
+        'Content-Type': 'application/json',
+    }),
+    body: JSON.stringify({ question: message }), // Assuming 'message' is defined elsewhere
+    redirect: 'follow',
+    };
+
+    fetch(url, requestOptions)
+    .then(response => response.json()) // Parse response as JSON
+    .then(data => {
+        const answer2 = data['result']; // Assign the value of 'result' to 'answer'
+        console.log('Answer:', answer2);
+        messages.push({user: message, assistant: answer2});
+        messages.shift();
+        answer = answer2;
+        console.log('Data:', data);
+    })
+    .then(data => updateConversationView())
+    .catch(error => console.error('Error:', error));
+    speak(answer);
 }
 
 inputField.addEventListener("keypress", function(event) {
     if (event.key === "Enter") {
+        console.log("Enter Button Pressed")
         event.preventDefault();
         sendTextMessage();
     }
@@ -59,10 +74,11 @@ function sendTextMessage() {
     const message = 
     inputField.value.trim();
     if (message !== "") {
+        const answer3 = answer;
         // For now, just show the user's message
         // Placeholder for receiving and showing the answer from the search engine
         takeCommand(message.toLowerCase());
-        messages.push({user: message, assistant: answer});
+        messages.push({user: message, assistant: answer3});
     updateConversationView();
         content.value = "";
     }

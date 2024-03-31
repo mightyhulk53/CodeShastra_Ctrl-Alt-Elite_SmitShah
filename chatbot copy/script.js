@@ -161,7 +161,7 @@ const userMessage = [
     const inputField = document.getElementById("input");
     let input = inputField.value.trim();
     input != "" && output(input);
-    inputField.value = "";
+    inputField.value = "answering...";
   }
   document.addEventListener("DOMContentLoaded", () => {
     const inputField = document.getElementById("input");
@@ -169,7 +169,7 @@ const userMessage = [
       if (e.code === "Enter") {
         let input = inputField.value.trim();
         input != "" && output(input);
-        inputField.value = "";
+        inputField.value = "answering...";
       }
     });
   });
@@ -195,7 +195,7 @@ const userMessage = [
       : alternative[Math.floor(Math.random() * alternative.length)];
     addChat(input, product);
   }
-  
+   
   function compare(triggerArray, replyArray, string) {
     let item;
     for (let x = 0; x < triggerArray.length; x++) {

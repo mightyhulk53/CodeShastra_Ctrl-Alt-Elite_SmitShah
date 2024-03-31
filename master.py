@@ -66,7 +66,11 @@ def get_news():
         retlist = []
         for hl in top_news['articles'][0:5]:
             retlist.append(hl['title'])
-        return retlist
+        return jsonify(
+            {
+                "result": retlist
+            })
+
     except KeyboardInterrupt:
         return None
     except requests.exceptions.RequestException:
@@ -81,8 +85,7 @@ def ask_text(question):
     
     return jsonify(
         {
-            "response": response.text,
-            "question": question
+            "result": response.text,
         }
     )
 
@@ -118,7 +121,7 @@ def describe_machine():
 
 def generate_command(question):
 
-    question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command for windows in plaintext. Add no notes or warnings. Your response should consist of nothing else but the command itself, such that your output can be directly executed on a windows machine."
+    question = "Extract the implied command line command in the following line:" + question + ". Return only an executable version of the command for windows in plaintext. Add no notes or warnings. Your response should consist of nothing else but the command itself, such that your output can be directly executed on a windows machine. Context: " + str(subprocess.run("dir", shell=True, capture_output=True, text=True).stdout)
     
     response = chat.send_message(str(question))
     
@@ -126,7 +129,7 @@ def generate_command(question):
     
 def classify_type(cmd):
 
-    question = "Classify the following command into one of the following categories: get_news, system_info, get_ip, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
+    question = "Classify the following command into one of the following categories: get_news, get_ip, email_sending, email_history, calendar_events, calculations, description_or_explanation, or executable_on_commandline: " + cmd + ". Return only the category of the command in plaintext. Add no notes, warnings, or any other formatting."
     
     response = chat.send_message(str(question))
     
@@ -136,7 +139,7 @@ def run_command(cmd: str):
     result = subprocess.run(cmd, shell=True, capture_output=True, text=True)    
     return jsonify(
         {
-            "output": result.stdout,
+            "result": result.stdout,
             "return_code": result.returncode
         }
     )
@@ -200,15 +203,16 @@ def send_email(jsonobject):
     emailMsg = message
     mimeMessage = MIMEMultipart()
     mimeMessage['to'] = reciever
-    mimeMessage['subject'] = 'You won'
+    mimeMessage['subject'] = subject
     mimeMessage.attach(MIMEText(emailMsg, 'plain'))
     raw_string = base64.urlsafe_b64encode(mimeMessage.as_bytes()).decode()
 
     try:
         message = service.users().messages().send(userId='me', body={'raw': raw_string}).execute()
-        return jsonify({"message": "Email sent successfully"})
+        return jsonify({"result": "Email sent successfully"})
     except Exception as e:
-        return 'An error occurred: {}'.format(e)
+        return jsonify({"result": "Error sending email: " + str(e)})
+
 
 def get_credentials():
     SCOPES = ['https://www.googleapis.com/auth/calendar']
@@ -238,11 +242,13 @@ def create_event(eventobj):
         service = build('calendar', 'v3', credentials=creds)
         if service:
             event = service.events().insert(calendarId='primary', body=eventobj).execute()
-            return 'Event created: %s' % (event.get('htmlLink'))
+            return jsonify({
+                "result": 'Event created: %s' % (event.get('htmlLink'))
+            })
         else:
-            return 'Error creating event:{}'.format(service)
-    except HttpError as e:
-        return 'Error creating event:{}'.format(e)
+            return jsonify({"result": 'Error creating event:{}'.format(service)})
+    except Exception as e:
+        return jsonify({"result": 'Error creating event:{}'.format(e)})
  
 def calendar_events(jsonobject):
     
@@ -308,7 +314,7 @@ def emailhistory():
                 msg = service.users().messages().get(userId='me', id=message['id']).execute()
                 snippets.append('Message snippet: {}'.format(msg['snippet']))
                 
-        return snippets
+        return jsonify({'result': snippets})
     except Exception as e:
         return 'An error occurred: {}'.format(e)
 
@@ -350,7 +356,7 @@ def extract_math_expression(text):
     result = eval(eval_str)
     print(eval_str, result)
     
-    return json.dumps({"result": result})
+    return jsonify({"result": str(result)})
 
 def get_network_info_json():
     """
@@ -361,9 +367,11 @@ def get_network_info_json():
     ip_address = socket.gethostbyname(hostname)
 
     network_info = {
+        'result':{
         "hostname": hostname,
         "ip_address": ip_address,
         "interfaces": []
+        }
     }
 
     try:
@@ -378,14 +386,18 @@ def get_network_info_json():
                         "netmask": address.netmask,
                         "broadcast": address.broadcast
                     }
-                    network_info["interfaces"].append(interface_info)
+                    network_info['result']["interfaces"].append(interface_info)
     except ImportError:
         pass  # No additional information without psutil
-
+    
     return json.dumps(network_info)
+    
+    # return json.dumps({
+    #     "result": retobj
+    # })
 
 def determine_intent(request_type,  text):
-    allowed_types = ["get_news", "system_info", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
+    allowed_types = ["get_news", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
     
     if request_type not in allowed_types:
         return jsonify({
@@ -398,7 +410,7 @@ def determine_intent(request_type,  text):
     elif request_type == "description_or_explanation":
         return ask_text(str(text))
     elif request_type == "executable_on_commandline":
-        return "obtained_command"
+        return run_command(generate_command(str(text)))
     elif request_type == "email_sending":
         returnobj =  generate_email(str(text)).replace("\n", "")
         return send_email(jsonobject=returnobj)
@@ -409,8 +421,6 @@ def determine_intent(request_type,  text):
         return calendar_events(jsonobject=returnobj)      
     elif request_type == "calculations":
         return extract_math_expression(str(text))
-    elif request_type == "system_info":
-        return describe_machine()
     elif request_type == "get_ip":
         return get_network_info_json()
     else:
@@ -432,29 +442,10 @@ def ask_in_audio():
     req_class = classify_type(str(text))
     
     ret = determine_intent(req_class, text)
-    if ret == "obtained_command":
-        cmmd = generate_command(str(text)).replace("\n", "")
-        flagger = is_safe_command(cmmd)
-        if flagger:
-            print("Command is safe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": True,
-                "SafeCommand": str(cmmd),
-            })
-        else:
-            print("Command is unsafe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": False,
-                "SafeCommand": None,
-                "Command": str(cmmd),
-            })
-    else:
-        retjson = None
+    
 
     
-    return retjson if retjson else ret
+    return ret
 
     
 @app.route("/ask_in_text", methods=["POST"])
@@ -465,43 +456,11 @@ def ask_in_text():
     req_class = classify_type(str(question))
     
     ret = determine_intent(req_class, question)
-    if ret == "obtained_command":
-        cmmd = generate_command(str(question)).replace("\n", "")
-        flagger = is_safe_command(cmmd)
-        if flagger:
-            print("Command is safe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": True,
-                "SafeCommand": str(cmmd),
-            })
-        else:
-            print("Command is unsafe")
-            retjson =  jsonify({
-                "foundCommand": True,
-                "Safe": False,
-                "SafeCommand": None,
-                "Command": str(cmmd),
-            })
-    else:
-        retjson = None
+    
 
     
-    return retjson if retjson else ret 
+    return ret 
 
-@app.route("/verified_command", methods=["POST"])
-@cross_origin()
-def verified_command():
-    
-    cmmd = request.json["command"]
-    status = request.json["status"]
-    
-    if status == "Verified":
-        results = run_command(cmmd)
-    else:
-        results = jsonify({"error": "Command not verified"})
-    
-    return results
 
 def text_from_base64_audio(base64_string):
     decoded_data = base64.b64decode(base64_string)

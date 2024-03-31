@@ -30,6 +30,7 @@ from googleapiclient.errors import HttpError
 import spacy
 import psutil
 import socket
+from googletrans import Translator
 
 # Load English language model
 nlp = spacy.load("en_core_web_sm")
@@ -396,6 +397,23 @@ def get_network_info_json():
     #     "result": retobj
     # })
 
+# Function to check if text is in English
+def is_english(text):
+    try:
+        translator = Translator()
+        translated = translator.translate(text, dest="en")
+        return translated.src == "en"
+    except Exception as e:
+        print("Error:", e)
+        return False
+
+# Function to translate text to English
+def translate_to_english(text):
+    translator = Translator()
+    translated = translator.translate(text, dest="en")
+    english_text = translated.text
+    return english_text
+
 def determine_intent(request_type,  text):
     allowed_types = ["get_news", "get_ip", "email_sending", "email_history", "calendar_events", "calculations", "description_or_explanation", "executable_on_commandline"]
     
@@ -439,9 +457,15 @@ def ask_in_audio():
     
     print("USER -> " + text)
     
-    req_class = classify_type(str(text))
+    if not is_english(text):
+        english_text = translate_to_english(text)
+        print("USER -> " + english_text)
+    else:
+        english_text = text
     
-    ret = determine_intent(req_class, text)
+    req_class = classify_type(str(english_text))
+    
+    ret = determine_intent(req_class, english_text)
     
 
     
@@ -453,9 +477,16 @@ def ask_in_audio():
 def ask_in_text():
     
     question = request.json["question"]
-    req_class = classify_type(str(question))
+    if not is_english(question):
+        english_text = translate_to_english(question)
+        print("USER -> " + english_text)
+    else:
+        english_text = question
     
-    ret = determine_intent(req_class, question)
+    
+    req_class = classify_type(str(english_text))
+    
+    ret = determine_intent(req_class, english_text)
     
 
     
